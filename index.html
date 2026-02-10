@@ -577,10 +577,28 @@
             }
 
             function calculateCost(start, now) {
-                if (!start) return 0;
-                const seconds = Math.max(0, (now - start) / 1000);
-                return (seconds / 3600) * HOURLY_RATE;
-            }
+    if (!start) return 0;
+    
+    // 1. Tính số phút đã chơi
+    const minutesPlayed = (now - start) / 60000;
+
+    // 2. Quy định 15 phút / block
+    const BLOCK_MINUTES = 15;
+    
+    // 3. Logic làm tròn (Math.round):
+    // - 20 phút / 15 = 1.33 -> Làm tròn về 1 (10k)
+    // - 25 phút / 15 = 1.66 -> Làm tròn lên 2 (20k)
+    let blocks = Math.round(minutesPlayed / BLOCK_MINUTES);
+
+    // *Mẹo*: Nếu bạn muốn khách chơi dưới 7 phút vẫn tính tối thiểu 10k 
+    // thì bỏ dấu // ở dòng bên dưới đi:
+    // if (blocks < 1) blocks = 1;
+
+    // 4. Tính giá tiền 1 block (10.000đ)
+    const pricePerBlock = (HOURLY_RATE / 60) * BLOCK_MINUTES;
+
+    return blocks * pricePerBlock;
+}
 
             // --- RENDERING UI ---
             function renderTables() {
