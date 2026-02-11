@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Billiards Manager Pro - Dynamic Menu</title>
+    <title>Billiards Manager Pro - Block Pricing</title>
     
     <!-- 1. Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -155,7 +155,8 @@
                     <div class="hidden md:block h-8 w-px bg-gray-300 dark:bg-gray-700"></div>
                     <div class="hidden md:block text-right">
                         <p class="text-[10px] text-gray-500 uppercase font-bold">Đơn giá</p>
-                        <p class="text-xl font-bold text-yellow-600 dark:text-gold font-display">40.000<span class="text-xs text-gray-500 font-sans ml-1">/h</span></p>
+                        <!-- CẬP NHẬT HIỂN THỊ GIÁ MỚI -->
+                        <p class="text-xl font-bold text-yellow-600 dark:text-gold font-display">10.000<span class="text-xs text-gray-500 font-sans ml-1">/15p</span></p>
                     </div>
                     
                     <button id="settings-btn" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 flex items-center justify-center transition-colors shadow-sm border border-gray-300 dark:border-gray-600 cursor-pointer" title="Cài đặt">
@@ -216,7 +217,7 @@
                                         <th class="p-4 font-medium text-xs uppercase tracking-wider text-right">Tổng tiền</th>
                                     </tr>
                                 </thead>
-                                <tbody id="history-table-body" class="divide-y divide-gray-200 dark:divide-gray-700/50">
+                                <tbody id="history-table-body" class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                                     <!-- History rows injected via JS -->
                                 </tbody>
                             </table>
@@ -362,7 +363,10 @@
             console.log('App Initializing...');
 
             // --- CONSTANTS ---
-            const HOURLY_RATE = 40000;
+            // Cập nhật Logic tính tiền mới
+            const BLOCK_PRICE = 10000;
+            const BLOCK_MINUTES = 15;
+            
             const DEFAULT_MENU = [
                 { id: 'sting', name: 'Sting', price: 15000, stock: 100 },
                 { id: 'coca', name: 'Coca Cola', price: 15000, stock: 100 },
@@ -850,8 +854,16 @@
                 // --- UTILS ---
                 calculateCost: function(startTime, currentTime) {
                     if (!startTime) return 0;
-                    const durationSeconds = Math.max(0, (currentTime - startTime) / 1000);
-                    return (durationSeconds / 3600) * HOURLY_RATE;
+                    // Tính số phút đã chơi
+                    const durationMinutes = (currentTime - startTime) / 1000 / 60;
+                    if (durationMinutes <= 0) return 0;
+                    
+                    // Làm tròn lên theo block 15 phút
+                    // Ví dụ: 1 phút -> ceil(1/15) = 1 block
+                    // 16 phút -> ceil(16/15) = 2 blocks
+                    const blocks = Math.ceil(durationMinutes / BLOCK_MINUTES);
+                    
+                    return blocks * BLOCK_PRICE;
                 },
                 
                 formatCurrency: function(amount) {
