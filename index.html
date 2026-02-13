@@ -96,10 +96,10 @@
 <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
     "recharts": "https://esm.sh/recharts@^3.7.0"
   }
 }
@@ -314,31 +314,28 @@
     </div>
 
     <!-- MODULE SCRIPT: FIREBASE & LOGIC -->
-<script type="module">
-    // 1. IMPORT CHUẨN (Đã bổ sung onChildAdded vào cuối danh sách)
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push, update, remove, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    <script type="module">
+        // 1. IMPORT
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, update, remove, onChildAdded } 
+            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // 2. CONFIG CỦA BẠN (Đã thêm dòng databaseURL quan trọng)
-    const firebaseConfig = {
-        apiKey: "AIzaSyC44jwQPMYFJS-sKj3kLM13q2A4OGPt9Xg",
-        authDomain: "winbilliards-33482.firebaseapp.com",
-        // 👇 DÒNG MỚI QUAN TRỌNG NÀY:
-        databaseURL: "https://winbilliards-33482-default-rtdb.firebaseio.com",
-        projectId: "winbilliards-33482",
-        storageBucket: "winbilliards-33482.firebasestorage.app",
-        messagingSenderId: "779828663960",
-        appId: "1:779828663960:web:cc68d6253b8f8a2d15c2ed",
-        measurementId: "G-Z4GKVK5Y6Z"
-    };
+        // 2. CONFIG CỦA BẠN
+        const firebaseConfig = {
+            apiKey: "AIzaSyC44jwQPMYFJS-sKj3kLM13q2A4OGPt9Xg",
+            authDomain: "winbilliards-33482.firebaseapp.com",
+            databaseURL: "https://winbilliards-33482-default-rtdb.firebaseio.com",
+            projectId: "winbilliards-33482",
+            storageBucket: "winbilliards-33482.firebasestorage.app",
+            messagingSenderId: "779828663960",
+            appId: "1:779828663960:web:cc68d6253b8f8a2d15c2ed",
+            measurementId: "G-Z4GKVK5Y6Z"
+        };
 
-    // 3. KHỞI TẠO FIREBASE (Đã sửa tên biến để tránh lỗi trùng lặp)
-    const firebaseApp = initializeApp(firebaseConfig);
-    const db = getDatabase(firebaseApp);
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getDatabase(firebaseApp);
 
-    // --- CÁC ĐOẠN CODE LOGIC PHÍA SAU GIỮ NGUYÊN ---
-
-        // --- 2. CONSTANTS & UTILS ---
+        // 3. CONSTANTS
         const BLOCK_PRICE = 10000;
         const BLOCK_MINUTES = 15;
         const DEFAULT_MENU = [
@@ -364,7 +361,7 @@
             return Math.ceil(durationMinutes / BLOCK_MINUTES) * BLOCK_PRICE;
         };
 
-        // --- 3. APP LOGIC ---
+        // 4. APP LOGIC
         const app = {
             data: {
                 tables: [],
@@ -380,7 +377,6 @@
 
             // --- INIT ---
             init: function() {
-                // Check Login Local (Gatekeeping only)
                 const isLogged = localStorage.getItem('isLoggedIn') === 'true';
                 if (isLogged) {
                     this.data.isLoggedIn = true;
@@ -391,14 +387,13 @@
 
                 this.setupEventListeners();
                 
-                // Clock Timer (Local UI update)
                 setInterval(() => {
                     this.data.currentTime = Date.now();
-                    if(this.data.isLoggedIn) this.renderTables(); // Re-render timer
+                    if(this.data.isLoggedIn) this.renderTables();
                 }, 1000);
             },
 
-            // --- SYNC DATA (THE CORE) ---
+            // --- SYNC DATA (FIXED) ---
             connectFirebase: function() {
                 document.getElementById('loading-tables').classList.remove('hidden');
                 document.getElementById('table-grid').classList.add('hidden');
@@ -406,36 +401,42 @@
                 // 1. Listen to TABLES
                 onValue(ref(db, 'tables'), (snapshot) => {
                     const val = snapshot.val();
+                    
                     if (!val) {
-                        // Init Defaults if empty
+                        // CASE: DB is Empty -> Create Default Local Data & Show Immediately
+                        console.log("DB Empty: Creating defaults...");
                         const defaults = Array.from({ length: 6 }, (_, i) => ({
                             id: i + 1, status: 'idle', startTime: null, items: [], savedSessions: []
                         }));
+                        this.data.tables = defaults;
+                        // Save to Firebase asynchronously
                         set(ref(db, 'tables'), defaults);
                     } else {
-                        // Convert Obj/Arr to Arr
+                        // CASE: Data exists
                         this.data.tables = Array.isArray(val) ? val : Object.values(val);
-                        // Ensure items array exists
+                        // Ensure arrays exist
                         this.data.tables = this.data.tables.map(t => ({...t, items: t.items || [], savedSessions: t.savedSessions || []}));
-                        
-                        document.getElementById('loading-tables').classList.add('hidden');
-                        document.getElementById('table-grid').classList.remove('hidden');
-                        this.renderTables();
                     }
+
+                    // *** ALWAYS RENDER & HIDE LOADING ***
+                    this.renderTables();
+                    document.getElementById('loading-tables').classList.add('hidden');
+                    document.getElementById('table-grid').classList.remove('hidden');
                 });
 
-                // 2. Listen to MENU
+                // 2. Listen to MENU (Similar Fix)
                 onValue(ref(db, 'menu'), (snapshot) => {
                     const val = snapshot.val();
                     if (!val) {
+                        this.data.menu = DEFAULT_MENU;
                         set(ref(db, 'menu'), DEFAULT_MENU);
                     } else {
                         this.data.menu = Array.isArray(val) ? val : Object.values(val);
-                        this.renderSettingsMenu();
                     }
+                    this.renderSettingsMenu();
                 });
 
-                // 3. Listen to HISTORY (Value for Chart)
+                // 3. Listen to HISTORY
                 onValue(ref(db, 'history'), (snapshot) => {
                     const val = snapshot.val();
                     this.data.history = val ? Object.values(val) : [];
@@ -449,26 +450,22 @@
                     this.renderArchives();
                 });
                 
-                // 5. NOTIFICATION LISTENER (Child Added to History = Payment Success)
+                // 5. NOTIFICATION LISTENER
                 onChildAdded(ref(db, 'history'), (snapshot) => {
                     const val = snapshot.val();
                     if(!val) return;
                     
-                    // Filter: Only notify if transaction happened in last 30 seconds
-                    // (Prevents spamming notifications on page reload)
                     const timeDiff = Date.now() - val.endTime;
                     if (timeDiff < 30000) {
                         this.showNotification(`🔔 Bàn ${val.tableId} vừa thanh toán`, `Tổng: ${formatCurrency(val.totalAmount)}`);
-                        // Play sound
                         const audio = document.getElementById('notification-sound');
-                        audio.play().catch(e => console.log('Interact document first to play audio'));
+                        audio.play().catch(e => console.log('Audio requires interaction'));
                     }
                 });
             },
 
             // --- ACTIONS (WRITE TO FIREBASE) ---
             startTable: function(id) {
-                // Find index to update correct path
                 const idx = this.data.tables.findIndex(t => t.id === id);
                 if (idx > -1) {
                     update(ref(db, `tables/${idx}`), {
@@ -508,7 +505,6 @@
                     totalAmount: totalAmount
                 };
 
-                // Atomic-like update (Push history, Reset Table)
                 push(ref(db, 'history'), newRecord);
                 
                 update(ref(db, `tables/${tableIdx}`), {
@@ -529,7 +525,6 @@
                     const cost = calculateCost(table.startTime, now);
                     const newSession = { startTime: table.startTime, endTime: now, amount: cost };
                     
-                    // Get current saved sessions
                     const updatedSessions = [...(table.savedSessions || []), newSession];
                     
                     update(ref(db, `tables/${tableIdx}`), {
@@ -547,7 +542,6 @@
             },
 
             updateOrder: function(itemId, change) {
-                // change is 1 (add) or -1 (remove)
                 const tableIdx = this.data.tables.findIndex(t => t.id === this.selectedTableId);
                 const table = this.data.tables[tableIdx];
                 const menuIdx = this.data.menu.findIndex(m => m.id === itemId);
@@ -555,13 +549,11 @@
 
                 if (!table || !menuItem) return;
 
-                // Check stock logic
                 if (change > 0 && menuItem.stock <= 0) {
                     alert('Hết hàng trong kho!');
                     return;
                 }
 
-                // Update Table Items
                 let items = [...(table.items || [])];
                 const itemInTableIdx = items.findIndex(i => i.id === itemId);
 
@@ -572,16 +564,11 @@
                     items.push({ id: itemId, count: change });
                 }
 
-                // Update Firebase: Table Items AND Menu Stock
                 const updates = {};
                 updates[`tables/${tableIdx}/items`] = items;
-                updates[`menu/${menuIdx}/stock`] = menuItem.stock - change; // Stock decrease if added, increase if removed
+                updates[`menu/${menuIdx}/stock`] = menuItem.stock - change; 
 
                 update(ref(db), updates);
-                
-                // Re-render handled by onValue, but service modal needs instant update?
-                // Actually onValue is fast enough usually.
-                // We'll rely on onValue to update the UI
             },
 
             // --- MENU MANAGEMENT ---
@@ -619,7 +606,7 @@
                     };
                     
                     push(ref(db, 'archives'), archive);
-                    set(ref(db, 'history'), null); // Clear history
+                    set(ref(db, 'history'), null);
                     alert('Đã chốt ngày!');
                 }
             },
@@ -862,5 +849,6 @@
     </script>
 </body>
 </html>
+
 
 
