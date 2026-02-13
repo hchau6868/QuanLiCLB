@@ -330,9 +330,9 @@
         measurementId: "G-Z4GKVK5Y6Z"
     };
 
-    // 3. KHỞI TẠO FIREBASE (Chỉ viết 1 lần duy nhất)
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+  // 3. KHỞI TẠO FIREBASE (Chỉ viết 1 lần duy nhất)
+const firebaseApp = initializeApp(firebaseConfig); // <--- Thêm chữ firebase vào trước
+const db = getDatabase(firebaseApp); // <--- Nhớ sửa cả chỗ này nữa
 
     // --- CÁC ĐOẠN CODE LOGIC PHÍA SAU GIỮ NGUYÊN ---
 
@@ -860,3 +860,4 @@
     </script>
 </body>
 </html>
+
