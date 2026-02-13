@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Billiards Manager Pro - Block Pricing</title>
+    <title>Billiards Manager Pro - Online Sync</title>
     
     <!-- 1. Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -38,11 +38,16 @@
                     },
                     animation: {
                         'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-in': 'slideIn 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards',
                     },
                     keyframes: {
                         fadeIn: {
                             '0%': { opacity: '0', transform: 'translateY(10px)' },
                             '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        slideIn: {
+                            '0%': { transform: 'translateX(100%)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' }
                         }
                     }
                 }
@@ -55,76 +60,85 @@
         
         /* Dark Mode */
         .dark body { background-color: #111827; color: #e4e4e7; }
-        .dark .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .dark .glass-panel { background: rgba(31, 41, 55, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .dark .glow-active { box-shadow: 0 0 15px rgba(57, 255, 20, 0.2); border-color: #39ff14 !important; }
 
         /* Light Mode */
         body { background-color: #f3f4f6; color: #1f2937; }
-        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(0, 0, 0, 0.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(0, 0, 0, 0.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .glow-active { box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); border-color: #10b981 !important; }
 
-        /* Login Screen Background */
-        .login-bg {
-            background-image: radial-gradient(circle at 50% 50%, #1f2937 0%, #111827 100%);
-            z-index: 100;
-        }
+        /* Login Screen */
+        .login-bg { background-image: radial-gradient(circle at 50% 50%, #1f2937 0%, #111827 100%); z-index: 100; }
         
-        /* Custom Scrollbar */
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            pointer-events: auto;
+            min-width: 300px;
+        }
+
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-
-        .modal-enter { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 <script type="importmap">
 {
   "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "recharts": "https://esm.sh/recharts@^3.7.0"
   }
 }
 </script>
 </head>
 <body>
+    <!-- SOUND EFFECT (Hidden) -->
+    <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
     <!-- LOGIN SCREEN -->
     <div id="login-screen" class="fixed inset-0 flex items-center justify-center login-bg">
-        <div class="glass-panel p-8 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl modal-enter relative">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl relative">
             <div class="text-center mb-8">
                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-neon-green/10 text-neon-green border border-neon-green/30 mb-4 shadow-[0_0_15px_rgba(57,255,20,0.3)]">
-                    <i class="fa-solid fa-layer-group text-3xl"></i>
+                    <i class="fa-solid fa-cloud text-3xl"></i>
                 </div>
                 <h1 class="text-3xl font-display font-bold text-white tracking-wide">
-                    BILLIARDS <span class="text-neon-green">PRO</span>
+                    BILLIARDS <span class="text-neon-green">ONLINE</span>
                 </h1>
-                <p class="text-gray-400 text-sm mt-2">Hệ thống quản lý chuyên nghiệp</p>
+                <p class="text-gray-400 text-sm mt-2">Đồng bộ dữ liệu Realtime</p>
             </div>
             
             <form id="login-form" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-400 mb-2">Tài khoản</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-3 text-gray-500"><i class="fa-solid fa-user"></i></span>
-                        <input type="text" id="username" class="w-full bg-gray-800/50 border border-gray-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green transition-all" placeholder="Tên Tài Khoản">
-                    </div>
+                    <input type="text" id="username" class="w-full bg-gray-800/50 border border-gray-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-neon-green transition-all" placeholder="Tên Tài Khoản">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-400 mb-2">Mật khẩu</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-3 text-gray-500"><i class="fa-solid fa-lock"></i></span>
-                        <input type="password" id="password" class="w-full bg-gray-800/50 border border-gray-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-neon-green focus:ring-1 focus:ring-neon-green transition-all" placeholder="Mật Khẩu">
-                    </div>
+                    <input type="password" id="password" class="w-full bg-gray-800/50 border border-gray-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-neon-green transition-all" placeholder="Mật Khẩu">
                 </div>
-                
-                <div id="login-error" class="text-red-500 text-sm text-center hidden font-bold bg-red-500/10 py-2 rounded border border-red-500/20">
-                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Sai tài khoản hoặc mật khẩu!
+                <div id="login-error" class="text-red-500 text-sm text-center hidden font-bold">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Sai thông tin đăng nhập!
                 </div>
-
-                <button type="submit" class="w-full bg-neon-green hover:bg-green-400 text-black font-bold py-3 rounded-lg shadow-[0_0_15px_rgba(57,255,20,0.4)] transition-all transform hover:scale-[1.02]">
-                    ĐĂNG NHẬP
+                <button type="submit" class="w-full bg-neon-green hover:bg-green-400 text-black font-bold py-3 rounded-lg shadow-[0_0_15px_rgba(57,255,20,0.4)] transition-transform hover:scale-[1.02]">
+                    KẾT NỐI SERVER
                 </button>
             </form>
         </div>
@@ -143,23 +157,23 @@
                         <h1 class="text-2xl font-display font-bold text-gray-900 dark:text-white tracking-wide">
                             BILLIARDS <span class="text-green-600 dark:text-neon-green">PRO</span>
                         </h1>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-[0.2em]">Manager</p>
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            <p class="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-wider">Online Sync</p>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-4 md:gap-8">
                     <div class="hidden md:block text-right">
-                        <p class="text-[10px] text-gray-500 uppercase font-bold">Hoạt động</p>
-                        <p id="active-count" class="text-xl font-bold text-green-600 dark:text-neon-green font-display">0 / 6</p>
-                    </div>
-                    <div class="hidden md:block h-8 w-px bg-gray-300 dark:bg-gray-700"></div>
-                    <div class="hidden md:block text-right">
-                        <p class="text-[10px] text-gray-500 uppercase font-bold">Đơn giá</p>
-                        <!-- CẬP NHẬT HIỂN THỊ GIÁ MỚI -->
-                        <p class="text-xl font-bold text-yellow-600 dark:text-gold font-display">10.000<span class="text-xs text-gray-500 font-sans ml-1">/15p</span></p>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Đơn giá (Block)</p>
+                        <p class="text-xl font-bold text-yellow-600 dark:text-gold font-display">10k<span class="text-xs text-gray-500 font-sans ml-1">/15p</span></p>
                     </div>
                     
-                    <button id="settings-btn" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 flex items-center justify-center transition-colors shadow-sm border border-gray-300 dark:border-gray-600 cursor-pointer" title="Cài đặt">
+                    <button id="settings-btn" class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 flex items-center justify-center transition-colors shadow-sm border border-gray-300 dark:border-gray-600 cursor-pointer">
                         <i class="fa-solid fa-gear text-lg animate-[spin_10s_linear_infinite]"></i>
                     </button>
                 </div>
@@ -172,27 +186,30 @@
             <section>
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-1 h-8 bg-green-500 dark:bg-neon-green rounded-full shadow-lg"></div>
-                    <h2 class="text-xl text-gray-900 dark:text-white font-bold">Danh sách bàn</h2>
+                    <h2 class="text-xl text-gray-900 dark:text-white font-bold">Danh sách bàn (Realtime)</h2>
                 </div>
-                <div id="table-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Loading State -->
+                <div id="loading-tables" class="text-center py-10 text-gray-500 animate-pulse">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-2"></i>
+                    <p>Đang tải dữ liệu từ máy chủ...</p>
+                </div>
+                <div id="table-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
                     <!-- Tables injected via JS -->
                 </div>
             </section>
 
-            <!-- History & Stats -->
+            <!-- Stats -->
             <section>
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-1 h-8 bg-blue-500 dark:bg-neon-blue rounded-full shadow-lg"></div>
-                    <h2 class="text-xl text-gray-900 dark:text-white font-bold">Báo cáo & Doanh thu</h2>
+                    <h2 class="text-xl text-gray-900 dark:text-white font-bold">Doanh thu hôm nay</h2>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-1 glass-panel rounded-xl p-6 border border-gray-200 dark:border-gray-700 flex flex-col">
-                        <h3 class="text-lg font-display font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-                            <i class="fa-solid fa-chart-simple text-blue-600 dark:text-neon-blue"></i> Thống kê doanh thu
-                        </h3>
+                        <h3 class="text-lg font-display font-bold text-gray-800 dark:text-white mb-6">Tổng quan</h3>
                         <div class="mb-8">
-                            <p class="text-gray-500 dark:text-gray-400 text-sm mb-1 uppercase tracking-wider">Tổng thu hôm nay</p>
+                            <p class="text-gray-500 dark:text-gray-400 text-sm mb-1 uppercase tracking-wider">Tổng thu</p>
                             <p id="total-revenue-display" class="text-4xl font-bold text-yellow-600 dark:text-gold font-display drop-shadow-md">0 ₫</p>
                         </div>
                         <div class="flex-1 w-full min-h-[200px] relative">
@@ -202,24 +219,19 @@
 
                     <div class="lg:col-span-2 glass-panel rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col h-[500px]">
                         <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-                            <h3 class="text-lg font-display font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                <i class="fa-solid fa-clock-rotate-left text-gray-400"></i> Lịch sử hoạt động
-                            </h3>
-                            <span id="history-count" class="text-xs text-gray-500 bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded border border-gray-300 dark:border-gray-700">0 giao dịch</span>
+                            <h3 class="text-lg font-display font-bold text-gray-800 dark:text-white">Lịch sử giao dịch</h3>
+                            <span id="history-count" class="text-xs text-gray-500 bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded">0 GD</span>
                         </div>
                         <div class="overflow-y-auto p-0 flex-1">
                             <table class="w-full text-left border-collapse">
                                 <thead class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 sticky top-0 z-10 shadow-md">
                                     <tr>
-                                        <th class="p-4 font-medium text-xs uppercase tracking-wider">Bàn</th>
-                                        <th class="p-4 font-medium text-xs uppercase tracking-wider">Thời lượng</th>
-                                        <th class="p-4 font-medium text-xs uppercase tracking-wider">Giờ ra</th>
-                                        <th class="p-4 font-medium text-xs uppercase tracking-wider text-right">Tổng tiền</th>
+                                        <th class="p-4 text-xs uppercase">Bàn</th>
+                                        <th class="p-4 text-xs uppercase">Giờ ra</th>
+                                        <th class="p-4 text-xs uppercase text-right">Tổng tiền</th>
                                     </tr>
                                 </thead>
-                                <tbody id="history-table-body" class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                                    <!-- History rows injected via JS -->
-                                </tbody>
+                                <tbody id="history-table-body" class="divide-y divide-gray-200 dark:divide-gray-700/50"></tbody>
                             </table>
                         </div>
                     </div>
@@ -229,772 +241,622 @@
     </div>
 
     <!-- MODALS -->
-    
     <!-- 1. Service Modal -->
-    <div id="service-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden modal-enter">
-        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div id="service-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Menu Dịch Vụ <span id="service-modal-table-id" class="text-blue-500 ml-2"></span></h2>
-                <button id="close-service-modal-btn" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Gọi Món <span id="service-modal-table-id" class="text-blue-500 ml-2"></span></h2>
+                <button onclick="app.closeModal('service-modal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-            <div id="menu-grid" class="p-5 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-900/50">
-                <!-- Menu items injected dynamically -->
-            </div>
+            <div id="menu-grid" class="p-5 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-900/50"></div>
             <div class="p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                <button id="confirm-service-btn" class="w-full py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-500 text-white uppercase">Hoàn tất</button>
+                <button onclick="app.closeModal('service-modal')" class="w-full py-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-500 text-white uppercase">Xong</button>
             </div>
         </div>
     </div>
 
     <!-- 2. Checkout Modal -->
-    <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden modal-enter">
-        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+    <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl w-full max-w-md shadow-2xl">
             <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-receipt text-yellow-500"></i> Thanh Toán</h2>
-                <button id="close-checkout-modal-btn" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <button onclick="app.closeModal('checkout-modal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <div id="checkout-content" class="p-6 space-y-5 bg-white dark:bg-gray-800"></div>
             <div class="p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex gap-3">
-                <button id="cancel-checkout-btn" class="flex-1 py-3 rounded-lg font-semibold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Quay lại</button>
-                <button id="confirm-checkout-btn" class="flex-1 py-3 rounded-lg font-bold bg-yellow-400 hover:bg-yellow-500 text-black shadow-lg shadow-yellow-500/20"><i class="fa-solid fa-print"></i> Thanh toán</button>
+                <button onclick="app.closeModal('checkout-modal')" class="flex-1 py-3 rounded-lg font-semibold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Hủy</button>
+                <button onclick="app.confirmCheckout()" class="flex-1 py-3 rounded-lg font-bold bg-yellow-400 hover:bg-yellow-500 text-black shadow-lg"><i class="fa-solid fa-print"></i> Thanh toán</button>
             </div>
         </div>
     </div>
 
-    <!-- 3. Settings Modal (Redesigned with Tabs) -->
-    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden modal-enter">
-        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            
-            <!-- Header -->
+    <!-- 3. Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white"><i class="fa-solid fa-sliders"></i> Quản Trị Hệ Thống</h2>
-                <button id="close-settings-btn" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white"><i class="fa-solid fa-sliders"></i> Quản Trị</h2>
+                <button onclick="app.closeModal('settings-modal')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-
-            <!-- Tabs -->
             <div class="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <button onclick="switchSettingsTab('general')" id="tab-general" class="flex-1 py-3 font-semibold text-sm transition-colors border-b-2 border-blue-600 dark:border-neon-green text-blue-600 dark:text-neon-green">
-                    <i class="fa-solid fa-gear mr-2"></i>Chung
-                </button>
-                <button onclick="switchSettingsTab('menu')" id="tab-menu" class="flex-1 py-3 font-semibold text-sm transition-colors border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                    <i class="fa-solid fa-utensils mr-2"></i>Thực Đơn
-                </button>
+                <button onclick="switchSettingsTab('general')" id="tab-general" class="flex-1 py-3 font-semibold text-sm transition-colors border-b-2 border-blue-600 dark:border-neon-green text-blue-600 dark:text-neon-green">Chung</button>
+                <button onclick="switchSettingsTab('menu')" id="tab-menu" class="flex-1 py-3 font-semibold text-sm transition-colors border-b-2 border-transparent text-gray-500">Thực Đơn</button>
             </div>
-
-            <!-- Content -->
             <div class="p-6 overflow-y-auto flex-1 bg-white dark:bg-gray-800">
-                
                 <!-- Tab: General -->
                 <div id="content-general" class="space-y-6">
-                    <!-- Theme Toggle -->
                     <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                         <div>
-                            <h3 class="font-bold text-gray-900 dark:text-white">Giao diện (Dark/Light)</h3>
-                            <p class="text-sm text-gray-500">Thay đổi màu sắc hiển thị</p>
+                            <h3 class="font-bold text-gray-900 dark:text-white">Giao diện</h3>
+                            <p class="text-sm text-gray-500">Dark/Light Mode</p>
                         </div>
-                        <button id="toggle-theme-btn" class="bg-gray-300 dark:bg-neon-green/20 border border-gray-400 dark:border-neon-green text-gray-700 dark:text-neon-green px-4 py-2 rounded-lg font-bold transition-colors">
-                            Đổi Giao Diện
-                        </button>
+                        <button onclick="app.toggleTheme()" class="bg-gray-300 dark:bg-neon-green/20 border border-gray-400 dark:border-neon-green text-gray-700 dark:text-neon-green px-4 py-2 rounded-lg font-bold">Đổi</button>
                     </div>
-                    
-                    <!-- End Day -->
                     <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-bold text-gray-900 dark:text-white mb-2">Chốt Ngày & Reset</h3>
-                        <p class="text-sm text-gray-500 mb-4">Lưu trữ doanh thu và đặt lại hệ thống về 0.</p>
-                        <button id="end-day-btn" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold shadow-lg shadow-red-500/20">
-                            <i class="fa-solid fa-box-archive"></i> CHỐT NGÀY
-                        </button>
-                        
-                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <h4 class="font-bold text-gray-900 dark:text-white mb-2 text-sm">Lịch sử lưu trữ:</h4>
-                            <div id="archive-list" class="max-h-32 overflow-y-auto text-sm text-gray-600 dark:text-gray-400 space-y-1"></div>
-                        </div>
+                        <h3 class="font-bold text-gray-900 dark:text-white mb-2">Chốt Ngày (Lưu & Reset)</h3>
+                        <button onclick="app.endDay()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold mb-4">CHỐT NGÀY</button>
+                        <h4 class="font-bold text-gray-900 dark:text-white mb-2 text-sm">Lịch sử Chốt:</h4>
+                        <div id="archive-list" class="max-h-32 overflow-y-auto text-sm text-gray-600 dark:text-gray-400 space-y-1"></div>
                     </div>
-
-                    <!-- Logout -->
-                    <button id="logout-btn" class="w-full py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <i class="fa-solid fa-right-from-bracket"></i> Đăng Xuất
-                    </button>
+                    <button onclick="app.logout()" class="w-full py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Đăng Xuất</button>
                 </div>
-
-                <!-- Tab: Menu Management -->
+                <!-- Tab: Menu -->
                 <div id="content-menu" class="hidden space-y-6">
-                    <!-- Add Item Form -->
-                    <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-bold text-gray-900 dark:text-white mb-4 text-sm uppercase tracking-wider">Thêm món mới</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                            <input type="text" id="new-item-name" placeholder="Tên món (VD: Cà phê)" class="md:col-span-2 px-3 py-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-neon-green">
-                            <input type="number" id="new-item-price" placeholder="Giá bán" class="px-3 py-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-neon-green">
-                            <input type="number" id="new-item-stock" placeholder="Tồn kho" class="px-3 py-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-neon-green">
-                            <button onclick="app.addMenuItem()" class="md:col-span-4 bg-blue-600 dark:bg-neon-green text-white dark:text-black font-bold py-2 rounded hover:opacity-90 transition-opacity">
-                                <i class="fa-solid fa-plus mr-1"></i> Thêm Vào Menu
-                            </button>
-                        </div>
+                    <div class="grid grid-cols-4 gap-3">
+                        <input type="text" id="new-item-name" placeholder="Tên món" class="col-span-2 px-3 py-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
+                        <input type="number" id="new-item-price" placeholder="Giá" class="px-3 py-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
+                        <input type="number" id="new-item-stock" placeholder="Kho" class="px-3 py-2 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
+                        <button onclick="app.addMenuItem()" class="col-span-4 bg-blue-600 dark:bg-neon-green text-white dark:text-black font-bold py-2 rounded">Thêm Món</button>
                     </div>
-
-                    <!-- Menu List Table -->
-                    <div>
-                        <h3 class="font-bold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wider">Danh sách hiện tại</h3>
-                        <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold">
-                                    <tr>
-                                        <th class="p-3">Tên món</th>
-                                        <th class="p-3 text-right">Giá bán</th>
-                                        <th class="p-3 text-right">Kho</th>
-                                        <th class="p-3 text-center">Xóa</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="settings-menu-list" class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                                    <!-- Items injected via JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <table class="w-full text-left text-sm"><tbody id="settings-menu-list"></tbody></table>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('App Initializing...');
+    <!-- MODULE SCRIPT: FIREBASE & LOGIC -->
+<script type="module">
+    // 1. IMPORT CHUẨN TỪ CDN (Chỉ giữ lại đoạn này)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-            // --- CONSTANTS ---
-            // Cập nhật Logic tính tiền mới
-            const BLOCK_PRICE = 10000;
-            const BLOCK_MINUTES = 15;
-            
-            const DEFAULT_MENU = [
-                { id: 'sting', name: 'Sting', price: 15000, stock: 100 },
-                { id: 'coca', name: 'Coca Cola', price: 15000, stock: 100 },
-                { id: 'water', name: 'Nước Suối', price: 10000, stock: 100 },
-                { id: 'thanglong', name: 'Thăng Long', price: 15000, stock: 50 },
-                { id: 'vina', name: 'Vina', price: 20000, stock: 50 }
-            ];
+    // 2. CONFIG CỦA BẠN (Mình đã chép lại từ ảnh của bạn vào đây)
+    const firebaseConfig = {
+        apiKey: "AIzaSyC44jwQPMYFJS-sKj3kLM13q2A4OGPt9Xg",
+        authDomain: "winbilliards-33482.firebaseapp.com",
+        projectId: "winbilliards-33482",
+        storageBucket: "winbilliards-33482.firebasestorage.app",
+        messagingSenderId: "779828663960",
+        appId: "1:779828663960:web:cc68d6253b8f8a2d15c2ed",
+        measurementId: "G-Z4GKVK5Y6Z"
+    };
 
-            // --- STATE ---
-            const app = {
-                data: {
-                    tables: [],
-                    history: [],
-                    archives: [],
-                    menu: [],
-                    theme: 'dark',
-                    isLoggedIn: false,
-                },
-                selectedTableId: null,
-                chartInstance: null,
+    // 3. KHỞI TẠO FIREBASE (Chỉ viết 1 lần duy nhất)
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-                init: function() {
-                    this.loadData();
-                    this.applyTheme();
-                    this.checkLoginStatus();
-                    this.setupEventListeners();
-                    
-                    // Timer loop
-                    setInterval(() => {
-                        if (this.data.isLoggedIn) {
-                            this.updateTimers();
-                        }
-                    }, 1000);
-                },
+    // --- CÁC ĐOẠN CODE LOGIC PHÍA SAU GIỮ NGUYÊN ---
 
-                loadData: function() {
-                    const savedTables = localStorage.getItem('billiards_tables');
-                    this.data.tables = savedTables ? JSON.parse(savedTables) : Array.from({ length: 6 }, (_, i) => ({
-                        id: i + 1, status: 'idle', startTime: null, items: [], savedSessions: []
-                    }));
+        // --- 2. CONSTANTS & UTILS ---
+        const BLOCK_PRICE = 10000;
+        const BLOCK_MINUTES = 15;
+        const DEFAULT_MENU = [
+            { id: '1', name: 'Sting', price: 15000, stock: 50 },
+            { id: '2', name: 'Coca Cola', price: 15000, stock: 50 },
+            { id: '3', name: 'Nước Suối', price: 10000, stock: 100 },
+            { id: '4', name: 'Thăng Long', price: 15000, stock: 20 },
+            { id: '5', name: 'Vina', price: 20000, stock: 20 }
+        ];
 
-                    const savedHistory = localStorage.getItem('billiards_history');
-                    this.data.history = savedHistory ? JSON.parse(savedHistory) : [];
+        // Format
+        const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(amount);
+        const formatDuration = (seconds) => {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return (h > 0 ? `${h}h ` : '') + (m > 0 ? `${m}p ` : '') + `${s}s`;
+        };
+        const calculateCost = (startTime, currentTime) => {
+            if (!startTime) return 0;
+            const durationMinutes = (currentTime - startTime) / 1000 / 60;
+            if (durationMinutes <= 0) return 0;
+            return Math.ceil(durationMinutes / BLOCK_MINUTES) * BLOCK_PRICE;
+        };
 
-                    const savedArchives = localStorage.getItem('billiards_archives');
-                    this.data.archives = savedArchives ? JSON.parse(savedArchives) : [];
+        // --- 3. APP LOGIC ---
+        const app = {
+            data: {
+                tables: [],
+                history: [],
+                archives: [],
+                menu: [],
+                theme: 'dark',
+                isLoggedIn: false,
+                currentTime: Date.now()
+            },
+            selectedTableId: null,
+            chartInstance: null,
 
-                    const savedMenu = localStorage.getItem('billiards_menu');
-                    this.data.menu = savedMenu ? JSON.parse(savedMenu) : [...DEFAULT_MENU];
+            // --- INIT ---
+            init: function() {
+                // Check Login Local (Gatekeeping only)
+                const isLogged = localStorage.getItem('isLoggedIn') === 'true';
+                if (isLogged) {
+                    this.data.isLoggedIn = true;
+                    this.showDashboard();
+                } else {
+                    this.showLogin();
+                }
 
-                    this.data.theme = localStorage.getItem('billiards_theme') || 'dark';
-                    this.data.isLoggedIn = localStorage.getItem('billiards_isLoggedIn') === 'true';
-                },
+                this.setupEventListeners();
+                
+                // Clock Timer (Local UI update)
+                setInterval(() => {
+                    this.data.currentTime = Date.now();
+                    if(this.data.isLoggedIn) this.renderTables(); // Re-render timer
+                }, 1000);
+            },
 
-                saveData: function() {
-                    localStorage.setItem('billiards_tables', JSON.stringify(this.data.tables));
-                    localStorage.setItem('billiards_history', JSON.stringify(this.data.history));
-                    localStorage.setItem('billiards_archives', JSON.stringify(this.data.archives));
-                    localStorage.setItem('billiards_menu', JSON.stringify(this.data.menu));
-                    localStorage.setItem('billiards_theme', this.data.theme);
-                    localStorage.setItem('billiards_isLoggedIn', this.data.isLoggedIn);
-                },
+            // --- SYNC DATA (THE CORE) ---
+            connectFirebase: function() {
+                document.getElementById('loading-tables').classList.remove('hidden');
+                document.getElementById('table-grid').classList.add('hidden');
 
-                checkLoginStatus: function() {
-                    if (this.data.isLoggedIn) {
-                        this.showDashboard();
+                // 1. Listen to TABLES
+                onValue(ref(db, 'tables'), (snapshot) => {
+                    const val = snapshot.val();
+                    if (!val) {
+                        // Init Defaults if empty
+                        const defaults = Array.from({ length: 6 }, (_, i) => ({
+                            id: i + 1, status: 'idle', startTime: null, items: [], savedSessions: []
+                        }));
+                        set(ref(db, 'tables'), defaults);
                     } else {
-                        this.showLogin();
-                    }
-                },
-
-                showLogin: function() {
-                    document.getElementById('login-screen').classList.remove('hidden');
-                    document.getElementById('app-screen').classList.add('hidden');
-                },
-
-                showDashboard: function() {
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('app-screen').classList.remove('hidden');
-                    this.renderTables();
-                    this.renderHistory();
-                },
-
-                // --- CORE LOGIC ---
-                startTable: function(id) {
-                    const table = this.data.tables.find(t => t.id === id);
-                    if (table) {
-                        table.status = 'active';
-                        table.startTime = Date.now();
-                        table.items = [];
-                        table.savedSessions = [];
-                        this.saveData();
-                        this.renderTables();
-                    }
-                },
-
-                stopTableRequest: function(id) {
-                    this.selectedTableId = id;
-                    this.renderCheckoutModal();
-                    document.getElementById('checkout-modal').classList.remove('hidden');
-                },
-
-                splitSession: function(id) {
-                    const table = this.data.tables.find(t => t.id === id);
-                    if (table && table.status === 'active') {
-                        const now = Date.now();
-                        const cost = this.calculateCost(table.startTime, now);
-                        table.savedSessions.push({ startTime: table.startTime, endTime: now, amount: cost });
-                        table.startTime = now;
-                        this.saveData();
-                        this.renderTables();
-                    }
-                },
-
-                orderRequest: function(id) {
-                    this.selectedTableId = id;
-                    this.renderServiceModal();
-                    document.getElementById('service-modal').classList.remove('hidden');
-                },
-
-                updateOrder: function(itemId, change) {
-                    const table = this.data.tables.find(t => t.id === this.selectedTableId);
-                    if (!table) return;
-
-                    const existingItem = table.items.find(i => i.id === itemId);
-                    if (existingItem) {
-                        existingItem.count += change;
-                        if (existingItem.count <= 0) {
-                            table.items = table.items.filter(i => i.id !== itemId);
-                        }
-                    } else if (change > 0) {
-                        table.items.push({ id: itemId, count: change });
-                    }
-                    this.saveData();
-                    this.renderServiceModal();
-                    this.renderTables();
-                },
-
-                confirmCheckout: function() {
-                    const table = this.data.tables.find(t => t.id === this.selectedTableId);
-                    if (!table) return;
-
-                    const endTime = Date.now();
-                    const currentDuration = Math.floor((endTime - table.startTime) / 1000);
-                    const currentAmount = this.calculateCost(table.startTime, endTime);
-                    const savedAmount = table.savedSessions.reduce((acc, s) => acc + s.amount, 0);
-                    const savedDuration = table.savedSessions.reduce((acc, s) => acc + Math.floor((s.endTime - s.startTime)/1000), 0);
-                    const serviceAmount = table.items.reduce((acc, item) => {
-                        const m = this.data.menu.find(x => x.id === item.id);
-                        return acc + (m ? m.price * item.count : 0);
-                    }, 0);
-
-                    const newHistory = {
-                        id: Date.now().toString(),
-                        tableId: table.id,
-                        startTime: table.savedSessions.length > 0 ? table.savedSessions[0].startTime : table.startTime,
-                        endTime: endTime,
-                        durationSeconds: currentDuration + savedDuration,
-                        totalAmount: currentAmount + savedAmount + serviceAmount
-                    };
-
-                    this.data.history.unshift(newHistory);
-                    
-                    table.status = 'idle';
-                    table.startTime = null;
-                    table.items = [];
-                    table.savedSessions = [];
-
-                    this.saveData();
-                    document.getElementById('checkout-modal').classList.add('hidden');
-                    this.renderTables();
-                    this.renderHistory();
-                },
-
-                endDay: function() {
-                    if (this.data.history.length === 0) {
-                        alert('Chưa có dữ liệu để chốt!');
-                        return;
-                    }
-                    if (confirm('Xác nhận CHỐT NGÀY? Dữ liệu sẽ được lưu và reset.')) {
-                        const total = this.data.history.reduce((sum, h) => sum + h.totalAmount, 0);
-                        const archive = {
-                            id: Date.now().toString(),
-                            timestamp: Date.now(),
-                            totalRevenue: total,
-                            transactionCount: this.data.history.length
-                        };
-                        this.data.archives.unshift(archive);
-                        this.data.history = [];
-                        this.data.tables = this.data.tables.map(t => ({...t, status: 'idle', startTime: null, items: [], savedSessions: []}));
+                        // Convert Obj/Arr to Arr
+                        this.data.tables = Array.isArray(val) ? val : Object.values(val);
+                        // Ensure items array exists
+                        this.data.tables = this.data.tables.map(t => ({...t, items: t.items || [], savedSessions: t.savedSessions || []}));
                         
-                        this.saveData();
-                        this.renderHistory();
-                        this.renderArchives();
+                        document.getElementById('loading-tables').classList.add('hidden');
+                        document.getElementById('table-grid').classList.remove('hidden');
                         this.renderTables();
-                        alert('Đã chốt ngày thành công!');
                     }
-                },
+                });
 
-                // --- MENU MANAGEMENT ---
-                addMenuItem: function() {
-                    const name = document.getElementById('new-item-name').value.trim();
-                    const price = parseInt(document.getElementById('new-item-price').value);
-                    const stock = parseInt(document.getElementById('new-item-stock').value) || 0;
-
-                    if (!name) return alert('Vui lòng nhập tên món!');
-                    if (isNaN(price) || price < 0) return alert('Giá không hợp lệ!');
-                    
-                    if (this.data.menu.some(m => m.name.toLowerCase() === name.toLowerCase())) {
-                        return alert('Món này đã tồn tại!');
+                // 2. Listen to MENU
+                onValue(ref(db, 'menu'), (snapshot) => {
+                    const val = snapshot.val();
+                    if (!val) {
+                        set(ref(db, 'menu'), DEFAULT_MENU);
+                    } else {
+                        this.data.menu = Array.isArray(val) ? val : Object.values(val);
+                        this.renderSettingsMenu();
                     }
+                });
 
-                    const newItem = {
-                        id: 'item_' + Date.now(),
-                        name: name,
-                        price: price,
-                        stock: stock
-                    };
+                // 3. Listen to HISTORY (Value for Chart)
+                onValue(ref(db, 'history'), (snapshot) => {
+                    const val = snapshot.val();
+                    this.data.history = val ? Object.values(val) : [];
+                    this.renderHistory();
+                });
 
-                    this.data.menu.push(newItem);
-                    this.saveData();
-                    this.renderSettingsMenu();
+                // 4. Listen to ARCHIVES
+                onValue(ref(db, 'archives'), (snapshot) => {
+                    const val = snapshot.val();
+                    this.data.archives = val ? Object.values(val) : [];
+                    this.renderArchives();
+                });
+                
+                // 5. NOTIFICATION LISTENER (Child Added to History = Payment Success)
+                onChildAdded(ref(db, 'history'), (snapshot) => {
+                    const val = snapshot.val();
+                    if(!val) return;
                     
-                    // Clear inputs
+                    // Filter: Only notify if transaction happened in last 30 seconds
+                    // (Prevents spamming notifications on page reload)
+                    const timeDiff = Date.now() - val.endTime;
+                    if (timeDiff < 30000) {
+                        this.showNotification(`🔔 Bàn ${val.tableId} vừa thanh toán`, `Tổng: ${formatCurrency(val.totalAmount)}`);
+                        // Play sound
+                        const audio = document.getElementById('notification-sound');
+                        audio.play().catch(e => console.log('Interact document first to play audio'));
+                    }
+                });
+            },
+
+            // --- ACTIONS (WRITE TO FIREBASE) ---
+            startTable: function(id) {
+                // Find index to update correct path
+                const idx = this.data.tables.findIndex(t => t.id === id);
+                if (idx > -1) {
+                    update(ref(db, `tables/${idx}`), {
+                        status: 'active',
+                        startTime: Date.now(),
+                        items: [],
+                        savedSessions: []
+                    });
+                }
+            },
+
+            stopTableRequest: function(id) {
+                this.selectedTableId = id;
+                this.renderCheckoutModal();
+                document.getElementById('checkout-modal').classList.remove('hidden');
+            },
+
+            confirmCheckout: function() {
+                const table = this.data.tables.find(t => t.id === this.selectedTableId);
+                const tableIdx = this.data.tables.findIndex(t => t.id === this.selectedTableId);
+                if (!table || tableIdx === -1) return;
+
+                const endTime = Date.now();
+                const currentAmount = calculateCost(table.startTime, endTime);
+                const savedAmount = table.savedSessions.reduce((sum, s) => sum + s.amount, 0);
+                const serviceAmount = table.items.reduce((sum, item) => {
+                    const m = this.data.menu.find(x => x.id === item.id);
+                    return sum + (m ? m.price * item.count : 0);
+                }, 0);
+                const totalAmount = currentAmount + savedAmount + serviceAmount;
+
+                const newRecord = {
+                    id: Date.now().toString(),
+                    tableId: table.id,
+                    startTime: table.savedSessions.length > 0 ? table.savedSessions[0].startTime : table.startTime,
+                    endTime: endTime,
+                    totalAmount: totalAmount
+                };
+
+                // Atomic-like update (Push history, Reset Table)
+                push(ref(db, 'history'), newRecord);
+                
+                update(ref(db, `tables/${tableIdx}`), {
+                    status: 'idle',
+                    startTime: null,
+                    items: [],
+                    savedSessions: []
+                });
+
+                this.closeModal('checkout-modal');
+            },
+
+            splitSession: function(id) {
+                const tableIdx = this.data.tables.findIndex(t => t.id === id);
+                const table = this.data.tables[tableIdx];
+                if (tableIdx > -1 && table.status === 'active') {
+                    const now = Date.now();
+                    const cost = calculateCost(table.startTime, now);
+                    const newSession = { startTime: table.startTime, endTime: now, amount: cost };
+                    
+                    // Get current saved sessions
+                    const updatedSessions = [...(table.savedSessions || []), newSession];
+                    
+                    update(ref(db, `tables/${tableIdx}`), {
+                        savedSessions: updatedSessions,
+                        startTime: now
+                    });
+                }
+            },
+
+            // --- INVENTORY & ORDER ---
+            orderRequest: function(id) {
+                this.selectedTableId = id;
+                this.renderServiceModal();
+                document.getElementById('service-modal').classList.remove('hidden');
+            },
+
+            updateOrder: function(itemId, change) {
+                // change is 1 (add) or -1 (remove)
+                const tableIdx = this.data.tables.findIndex(t => t.id === this.selectedTableId);
+                const table = this.data.tables[tableIdx];
+                const menuIdx = this.data.menu.findIndex(m => m.id === itemId);
+                const menuItem = this.data.menu[menuIdx];
+
+                if (!table || !menuItem) return;
+
+                // Check stock logic
+                if (change > 0 && menuItem.stock <= 0) {
+                    alert('Hết hàng trong kho!');
+                    return;
+                }
+
+                // Update Table Items
+                let items = [...(table.items || [])];
+                const itemInTableIdx = items.findIndex(i => i.id === itemId);
+
+                if (itemInTableIdx > -1) {
+                    items[itemInTableIdx].count += change;
+                    if (items[itemInTableIdx].count <= 0) items.splice(itemInTableIdx, 1);
+                } else if (change > 0) {
+                    items.push({ id: itemId, count: change });
+                }
+
+                // Update Firebase: Table Items AND Menu Stock
+                const updates = {};
+                updates[`tables/${tableIdx}/items`] = items;
+                updates[`menu/${menuIdx}/stock`] = menuItem.stock - change; // Stock decrease if added, increase if removed
+
+                update(ref(db), updates);
+                
+                // Re-render handled by onValue, but service modal needs instant update?
+                // Actually onValue is fast enough usually.
+                // We'll rely on onValue to update the UI
+            },
+
+            // --- MENU MANAGEMENT ---
+            addMenuItem: function() {
+                const name = document.getElementById('new-item-name').value;
+                const price = parseInt(document.getElementById('new-item-price').value);
+                const stock = parseInt(document.getElementById('new-item-stock').value);
+
+                if (name && price && stock >= 0) {
+                    const newItem = { id: 'item_' + Date.now(), name, price, stock };
+                    const newMenu = [...this.data.menu, newItem];
+                    set(ref(db, 'menu'), newMenu);
+                    
                     document.getElementById('new-item-name').value = '';
                     document.getElementById('new-item-price').value = '';
                     document.getElementById('new-item-stock').value = '';
-                },
+                }
+            },
+            
+            deleteMenuItem: function(id) {
+                if(confirm('Xóa món này?')) {
+                    const newMenu = this.data.menu.filter(m => m.id !== id);
+                    set(ref(db, 'menu'), newMenu);
+                }
+            },
 
-                deleteMenuItem: function(id) {
-                    if (confirm('Bạn có chắc muốn xóa món này?')) {
-                        this.data.menu = this.data.menu.filter(m => m.id !== id);
-                        this.saveData();
-                        this.renderSettingsMenu();
+            // --- ADMIN ---
+            endDay: function() {
+                if(confirm('Chốt ngày sẽ lưu doanh thu và xóa lịch sử hôm nay?')) {
+                    const total = this.data.history.reduce((sum, h) => sum + h.totalAmount, 0);
+                    const archive = {
+                        id: Date.now().toString(),
+                        timestamp: Date.now(),
+                        totalRevenue: total
+                    };
+                    
+                    push(ref(db, 'archives'), archive);
+                    set(ref(db, 'history'), null); // Clear history
+                    alert('Đã chốt ngày!');
+                }
+            },
+
+            // --- UI RENDERERS ---
+            renderTables: function() {
+                const container = document.getElementById('table-grid');
+                if(!container) return;
+
+                const html = this.data.tables.map(table => {
+                    const isActive = table.status === 'active';
+                    let currentCost = 0, durationText = '--:--', savedCost = 0, serviceCost = 0;
+
+                    if (isActive) {
+                        currentCost = calculateCost(table.startTime, this.data.currentTime);
+                        durationText = formatDuration(Math.floor((this.data.currentTime - table.startTime) / 1000));
                     }
-                },
-
-                // --- RENDERERS ---
-                renderTables: function() {
-                    const container = document.getElementById('table-grid');
-                    let activeCount = 0;
                     
-                    container.innerHTML = this.data.tables.map(table => {
-                        const isActive = table.status === 'active';
-                        if (isActive) activeCount++;
-                        
-                        let currentCost = 0, savedCost = 0, serviceCost = 0, totalCost = 0;
-                        let durationText = '--:--';
-
-                        if (isActive) {
-                            const now = Date.now();
-                            currentCost = this.calculateCost(table.startTime, now);
-                            durationText = this.formatDuration(Math.floor((now - table.startTime) / 1000));
-                        }
-
-                        savedCost = table.savedSessions.reduce((acc, s) => acc + s.amount, 0);
-                        serviceCost = table.items.reduce((acc, item) => {
-                            const m = this.data.menu.find(x => x.id === item.id);
-                            return acc + (m ? m.price * item.count : 0);
-                        }, 0);
-                        totalCost = currentCost + savedCost + serviceCost;
-
-                        return `
-                            <div class="glass-panel border ${isActive ? 'border-green-500 dark:border-neon-green glow-active' : 'border-gray-200 dark:border-gray-700'} rounded-xl overflow-hidden group transition-all duration-300 relative">
-                                <div class="p-4 flex justify-between items-center ${isActive ? 'bg-green-100 dark:bg-neon-green/10' : 'bg-gray-100 dark:bg-gray-800/50'}">
-                                    <div>
-                                        <h3 class="text-2xl font-display font-bold text-gray-900 dark:text-white">BÀN ${table.id}</h3>
-                                        <div class="flex items-center gap-2 mt-1">
-                                            <div class="w-2 h-2 rounded-full ${isActive ? 'bg-green-500 dark:bg-neon-green animate-pulse' : 'bg-gray-400'}"></div>
-                                            <span class="text-xs font-bold uppercase ${isActive ? 'text-green-600 dark:text-neon-green' : 'text-gray-500'}">${isActive ? 'ĐANG CHƠI' : 'TRỐNG'}</span>
-                                        </div>
-                                    </div>
-                                    <div class="w-10 h-10 rounded-lg border flex items-center justify-center ${isActive ? 'border-green-300 dark:border-neon-green/50 text-green-600 dark:text-neon-green' : 'border-gray-300 dark:border-gray-600 text-gray-400'}">
-                                        <i class="fa-solid fa-clock text-lg"></i>
-                                    </div>
-                                </div>
-                                <div class="p-4 space-y-4">
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <div class="bg-gray-50 dark:bg-gray-900/60 p-2 rounded border border-gray-200 dark:border-gray-700">
-                                            <span class="text-[10px] uppercase text-gray-500 font-bold">Tiền giờ</span>
-                                            <div id="cost-${table.id}" class="text-gray-900 dark:text-white font-mono font-bold text-lg">${this.formatCurrency(currentCost)}</div>
-                                            <div id="timer-${table.id}" class="text-blue-600 dark:text-neon-blue text-xs font-mono">${durationText}</div>
-                                        </div>
-                                        <div class="p-2 rounded border ${savedCost > 0 ? 'bg-purple-50 dark:bg-neon-purple/10 border-purple-200 dark:border-neon-purple/30' : 'bg-gray-50 dark:bg-gray-900/60 border-gray-200 dark:border-gray-700'}">
-                                            <span class="text-[10px] uppercase font-bold ${savedCost > 0 ? 'text-purple-600 dark:text-neon-purple' : 'text-gray-500'}">Đã chốt</span>
-                                            <div class="font-mono font-bold text-lg ${savedCost > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-500'}">${this.formatCurrency(savedCost)}</div>
-                                        </div>
-                                    </div>
-                                    <div class="pt-2 border-t border-gray-200 dark:border-gray-700/50 flex justify-between items-center text-sm">
-                                        <span class="text-gray-500 dark:text-gray-400"><i class="fa-solid fa-wine-glass mr-1"></i> Dịch vụ</span>
-                                        <span class="font-bold text-gray-900 dark:text-white">${this.formatCurrency(serviceCost)}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-xs uppercase font-bold text-gray-500">Tổng cộng</span>
-                                        <span id="total-${table.id}" class="text-2xl font-display font-bold ${isActive ? 'text-yellow-600 dark:text-gold' : 'text-gray-400'}">${this.formatCurrency(totalCost)}</span>
-                                    </div>
-                                </div>
-                                <div class="p-4 pt-0 grid grid-cols-4 gap-2">
-                                    <button onclick="app.orderRequest(${table.id})" ${!isActive ? 'disabled' : ''} class="col-span-1 py-3 rounded border flex items-center justify-center transition-all ${isActive ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-neon-blue border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-neon-blue' : 'bg-gray-200 dark:bg-gray-900 text-gray-400 cursor-not-allowed'}"><i class="fa-solid fa-utensils"></i></button>
-                                    <button onclick="app.splitSession(${table.id})" ${!isActive ? 'disabled' : ''} class="col-span-1 py-3 rounded border flex items-center justify-center transition-all ${isActive ? 'bg-white dark:bg-gray-800 text-purple-600 dark:text-neon-purple border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-neon-purple' : 'bg-gray-200 dark:bg-gray-900 text-gray-400 cursor-not-allowed'}"><i class="fa-solid fa-scissors"></i></button>
-                                    <button onclick="${isActive ? `app.stopTableRequest(${table.id})` : `app.startTable(${table.id})`}" class="col-span-2 py-3 rounded font-bold flex items-center justify-center gap-2 uppercase text-sm ${isActive ? 'bg-red-50 dark:bg-neon-red/10 text-red-600 dark:text-neon-red border border-red-200 dark:border-neon-red/50 hover:bg-red-500 hover:text-white' : 'bg-green-500 dark:bg-neon-green text-white dark:text-black hover:bg-green-400'}">
-                                        ${isActive ? '<i class="fa-solid fa-stop"></i> Thanh toán' : '<i class="fa-solid fa-play"></i> Mở bàn'}
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                    document.getElementById('active-count').innerText = `${activeCount} / 6`;
-                },
-
-                renderServiceModal: function() {
-                    const table = this.data.tables.find(t => t.id === this.selectedTableId);
-                    if (!table) return;
-                    document.getElementById('service-modal-table-id').innerText = `(Bàn ${table.id})`;
-                    
-                    const container = document.getElementById('menu-grid');
-                    container.innerHTML = this.data.menu.map(item => {
-                        const qty = table.items.find(i => i.id === item.id)?.count || 0;
-                        return `
-                            <div class="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
-                                <div>
-                                    <h4 class="font-bold text-gray-800 dark:text-white">${item.name}</h4>
-                                    <p class="text-blue-600 dark:text-gold font-mono text-sm font-bold">${this.formatCurrency(item.price)}</p>
-                                </div>
-                                <div class="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                                    <button onclick="app.updateOrder('${item.id}', -1)" ${qty === 0 ? 'disabled' : ''} class="w-8 h-8 flex items-center justify-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-red-500 hover:text-white disabled:opacity-50"><i class="fa-solid fa-minus text-xs"></i></button>
-                                    <span class="w-8 text-center font-bold text-gray-800 dark:text-white">${qty}</span>
-                                    <button onclick="app.updateOrder('${item.id}', 1)" class="w-8 h-8 flex items-center justify-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-green-500 hover:text-white"><i class="fa-solid fa-plus text-xs"></i></button>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                },
-
-                renderCheckoutModal: function() {
-                    const table = this.data.tables.find(t => t.id === this.selectedTableId);
-                    if (!table) return;
-
-                    const now = Date.now();
-                    const currentCost = this.calculateCost(table.startTime, now);
-                    const savedCost = table.savedSessions.reduce((acc, s) => acc + s.amount, 0);
-                    const serviceCost = table.items.reduce((acc, item) => {
+                    savedCost = (table.savedSessions || []).reduce((sum, s) => sum + s.amount, 0);
+                    serviceCost = (table.items || []).reduce((sum, item) => {
                         const m = this.data.menu.find(x => x.id === item.id);
-                        return acc + (m ? m.price * item.count : 0);
+                        return sum + (m ? m.price * item.count : 0);
                     }, 0);
                     const total = currentCost + savedCost + serviceCost;
 
-                    let html = `
-                        <div class="text-center mb-4">
-                            <div class="inline-block px-4 py-1 rounded-full bg-green-100 dark:bg-neon-green/10 text-green-700 dark:text-neon-green border border-green-200 dark:border-neon-green/30 font-bold mb-1">BÀN ${table.id}</div>
-                            <p class="text-xs text-gray-500">${new Date().toLocaleString('vi-VN')}</p>
+                    return `
+                    <div class="glass-panel border ${isActive ? 'border-green-500 dark:border-neon-green glow-active' : 'border-gray-200 dark:border-gray-700'} rounded-xl overflow-hidden relative">
+                        <div class="p-4 flex justify-between items-center ${isActive ? 'bg-green-100 dark:bg-neon-green/10' : 'bg-gray-100 dark:bg-gray-800/50'}">
+                            <div>
+                                <h3 class="text-2xl font-display font-bold text-gray-900 dark:text-white">BÀN ${table.id}</h3>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <div class="w-2 h-2 rounded-full ${isActive ? 'bg-green-500 dark:bg-neon-green animate-pulse' : 'bg-gray-400'}"></div>
+                                    <span class="text-xs font-bold uppercase ${isActive ? 'text-green-600 dark:text-neon-green' : 'text-gray-500'}">${isActive ? 'ĐANG CHƠI' : 'TRỐNG'}</span>
+                                </div>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg border flex items-center justify-center ${isActive ? 'border-green-300 dark:border-neon-green/50 text-green-600 dark:text-neon-green' : 'border-gray-300 dark:border-gray-600 text-gray-400'}">
+                                <i class="fa-solid fa-clock text-lg"></i>
+                            </div>
                         </div>
-                        <div class="space-y-3 text-sm">
-                    `;
-                    if (table.savedSessions.length > 0) {
-                        html += `<div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded border border-gray-200 dark:border-gray-600 border-dashed">
-                            <div class="font-bold text-purple-600 dark:text-neon-purple text-xs uppercase mb-2">Đã chốt trước đó</div>`;
-                        table.savedSessions.forEach((s, i) => {
-                            html += `<div class="flex justify-between text-gray-600 dark:text-gray-300 mb-1"><span>Phiên ${i+1}</span><span>${this.formatCurrency(s.amount)}</span></div>`;
-                        });
-                        html += `</div>`;
-                    }
-                    html += `
-                        <div class="flex justify-between items-center text-gray-700 dark:text-gray-300">
-                            <span>Tiền giờ hiện tại:</span><span class="font-bold text-gray-900 dark:text-white">${this.formatCurrency(currentCost)}</span>
+                        <div class="p-4 space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-gray-50 dark:bg-gray-900/60 p-2 rounded border border-gray-200 dark:border-gray-700">
+                                    <span class="text-[10px] uppercase text-gray-500 font-bold">Giờ chơi</span>
+                                    <div class="text-gray-900 dark:text-white font-mono font-bold text-lg">${formatCurrency(currentCost)}</div>
+                                    <div class="text-blue-600 dark:text-neon-blue text-xs font-mono">${durationText}</div>
+                                </div>
+                                <div class="p-2 rounded border ${savedCost>0 ? 'bg-purple-50 dark:bg-neon-purple/10 border-purple-200 dark:border-neon-purple/30' : 'bg-gray-50 dark:bg-gray-900/60 border-gray-200 dark:border-gray-700'}">
+                                    <span class="text-[10px] uppercase font-bold ${savedCost>0 ? 'text-purple-600 dark:text-neon-purple' : 'text-gray-500'}">Đã chốt</span>
+                                    <div class="font-mono font-bold text-lg ${savedCost>0 ? 'text-gray-900 dark:text-white' : 'text-gray-500'}">${formatCurrency(savedCost)}</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center text-sm border-t border-gray-200 dark:border-gray-700/50 pt-2">
+                                <span class="text-gray-500 dark:text-gray-400">Dịch vụ</span>
+                                <span class="font-bold text-gray-900 dark:text-white">${formatCurrency(serviceCost)}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs uppercase font-bold text-gray-500">Tổng</span>
+                                <span class="text-2xl font-display font-bold ${isActive ? 'text-yellow-600 dark:text-gold' : 'text-gray-400'}">${formatCurrency(total)}</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between items-center text-gray-700 dark:text-gray-300">
-                            <span>Dịch vụ:</span><span class="font-bold text-blue-600 dark:text-neon-blue">${this.formatCurrency(serviceCost)}</span>
+                        <div class="p-4 pt-0 grid grid-cols-4 gap-2">
+                            <button onclick="app.orderRequest(${table.id})" ${!isActive?'disabled':''} class="col-span-1 py-3 rounded border flex justify-center items-center ${isActive?'bg-white dark:bg-gray-800 text-blue-600 dark:text-neon-blue border-gray-300 dark:border-gray-600':'bg-gray-200 dark:bg-gray-900 text-gray-400 cursor-not-allowed'}"><i class="fa-solid fa-utensils"></i></button>
+                            <button onclick="app.splitSession(${table.id})" ${!isActive?'disabled':''} class="col-span-1 py-3 rounded border flex justify-center items-center ${isActive?'bg-white dark:bg-gray-800 text-purple-600 dark:text-neon-purple border-gray-300 dark:border-gray-600':'bg-gray-200 dark:bg-gray-900 text-gray-400 cursor-not-allowed'}"><i class="fa-solid fa-scissors"></i></button>
+                            <button onclick="${isActive ? `app.stopTableRequest(${table.id})` : `app.startTable(${table.id})`}" class="col-span-2 py-3 rounded font-bold uppercase text-sm flex items-center justify-center gap-2 ${isActive ? 'bg-red-50 dark:bg-neon-red/10 text-red-600 dark:text-neon-red border border-red-200 dark:border-neon-red/50 hover:bg-red-500 hover:text-white' : 'bg-green-500 dark:bg-neon-green text-white dark:text-black hover:bg-green-400'}">
+                                ${isActive ? '<i class="fa-solid fa-stop"></i> Thanh toán' : '<i class="fa-solid fa-play"></i> Mở bàn'}
+                            </button>
                         </div>
-                    `;
-                    if (table.items.length > 0) {
-                        html += `<div class="pl-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">`;
-                        table.items.forEach(item => {
-                             const m = this.data.menu.find(x => x.id === item.id);
-                             if(m) html += `<div class="flex justify-between"><span>${m.name} x${item.count}</span><span>${this.formatCurrency(m.price * item.count)}</span></div>`;
-                        });
-                        html += `</div>`;
-                    }
-                    html += `
-                        <div class="border-t border-gray-200 dark:border-gray-600 my-2 pt-2 flex justify-between items-center text-lg">
-                            <span class="font-bold text-gray-900 dark:text-white">TỔNG CỘNG</span>
-                            <span class="font-display font-bold text-yellow-600 dark:text-gold text-2xl">${this.formatCurrency(total)}</span>
-                        </div>
-                        </div>
-                    `;
-                    document.getElementById('checkout-content').innerHTML = html;
-                },
+                    </div>`;
+                }).join('');
+                container.innerHTML = html;
+            },
 
-                renderSettingsMenu: function() {
-                    const tbody = document.getElementById('settings-menu-list');
-                    if (this.data.menu.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Thực đơn trống</td></tr>';
-                        return;
-                    }
-                    tbody.innerHTML = this.data.menu.map(item => `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                            <td class="p-3 text-gray-800 dark:text-white font-medium">${item.name}</td>
-                            <td class="p-3 text-right text-blue-600 dark:text-neon-green">${this.formatCurrency(item.price)}</td>
-                            <td class="p-3 text-right text-gray-600 dark:text-gray-400">${item.stock || 0}</td>
-                            <td class="p-3 text-center">
-                                <button onclick="app.deleteMenuItem('${item.id}')" class="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded transition-colors">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
-                },
-
-                renderHistory: function() {
-                    const totalRevenue = this.data.history.reduce((sum, h) => sum + h.totalAmount, 0);
-                    document.getElementById('total-revenue-display').innerText = this.formatCurrency(totalRevenue);
-                    document.getElementById('history-count').innerText = `${this.data.history.length} giao dịch`;
-
-                    const tbody = document.getElementById('history-table-body');
-                    if (this.data.history.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">Chưa có dữ liệu.</td></tr>`;
-                    } else {
-                        const sorted = [...this.data.history].sort((a, b) => b.endTime - a.endTime);
-                        tbody.innerHTML = sorted.map(h => `
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                <td class="p-4"><span class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white px-2 py-1 rounded text-xs font-bold border border-gray-300 dark:border-gray-600">Bàn ${h.tableId}</span></td>
-                                <td class="p-4 text-gray-600 dark:text-gray-300 font-mono text-sm">${this.formatDuration(h.durationSeconds)}</td>
-                                <td class="p-4 text-gray-500 dark:text-gray-400 text-sm">${new Date(h.endTime).toLocaleTimeString()}</td>
-                                <td class="p-4 text-right text-yellow-600 dark:text-gold font-bold">${this.formatCurrency(h.totalAmount)}</td>
-                            </tr>
-                        `).join('');
-                    }
-                    this.renderChart();
-                },
-
-                renderArchives: function() {
-                    const list = document.getElementById('archive-list');
-                    if (this.data.archives.length === 0) {
-                        list.innerHTML = '<div class="p-2 text-center text-gray-500 italic">Chưa có lịch sử</div>';
-                        return;
-                    }
-                    list.innerHTML = this.data.archives.map(a => `
-                        <div class="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700/50 rounded mb-1">
-                            <span>${new Date(a.timestamp).toLocaleDateString()}</span>
-                            <span class="font-bold text-yellow-600 dark:text-gold">${this.formatCurrency(a.totalRevenue)}</span>
-                        </div>
-                    `).join('');
-                },
-
-                renderChart: function() {
-                    const ctx = document.getElementById('revenueChart');
-                    if (!ctx) return;
-                    
-                    if (this.chartInstance) this.chartInstance.destroy();
-
-                    const chartData = Array.from({ length: 6 }, (_, i) => {
-                        const tableId = i + 1;
-                        return this.data.history.filter(h => h.tableId === tableId).reduce((sum, h) => sum + h.totalAmount, 0);
-                    });
-
-                    const isDark = this.data.theme === 'dark';
-                    const color = isDark ? '#39ff14' : '#10b981';
-                    const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-                    const textColor = isDark ? '#9ca3af' : '#4b5563';
-
-                    this.chartInstance = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Bàn 1', 'Bàn 2', 'Bàn 3', 'Bàn 4', 'Bàn 5', 'Bàn 6'],
-                            datasets: [{
-                                label: 'Doanh thu',
-                                data: chartData,
-                                backgroundColor: isDark ? 'rgba(57, 255, 20, 0.5)' : 'rgba(16, 185, 129, 0.5)',
-                                borderColor: color,
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
-                                x: { grid: { display: false }, ticks: { color: textColor } }
-                            }
-                        }
-                    });
-                },
-
-                // --- UTILS ---
-                calculateCost: function(startTime, currentTime) {
-                    if (!startTime) return 0;
-                    // Tính số phút đã chơi
-                    const durationMinutes = (currentTime - startTime) / 1000 / 60;
-                    if (durationMinutes <= 0) return 0;
-                    
-                    // Làm tròn lên theo block 15 phút
-                    // Ví dụ: 1 phút -> ceil(1/15) = 1 block
-                    // 16 phút -> ceil(16/15) = 2 blocks
-                    const blocks = Math.ceil(durationMinutes / BLOCK_MINUTES);
-                    
-                    return blocks * BLOCK_PRICE;
-                },
+            renderServiceModal: function() {
+                const table = this.data.tables.find(t => t.id === this.selectedTableId);
+                if (!table) return;
                 
-                formatCurrency: function(amount) {
-                    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0 }).format(amount);
-                },
+                document.getElementById('service-modal-table-id').innerText = `(Bàn ${table.id})`;
+                const container = document.getElementById('menu-grid');
                 
-                formatDuration: function(seconds) {
-                    const h = Math.floor(seconds / 3600);
-                    const m = Math.floor((seconds % 3600) / 60);
-                    const s = seconds % 60;
-                    return (h > 0 ? `${h}h ` : '') + (m > 0 ? `${m}p ` : '') + `${s}s`;
-                },
+                container.innerHTML = this.data.menu.map(item => {
+                    const qty = (table.items || []).find(i => i.id === item.id)?.count || 0;
+                    return `
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <div>
+                            <h4 class="font-bold text-gray-800 dark:text-white">${item.name}</h4>
+                            <p class="text-blue-600 dark:text-gold font-mono text-sm font-bold">${formatCurrency(item.price)}</p>
+                            <p class="text-xs text-gray-500">Kho: ${item.stock}</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                            <button onclick="app.updateOrder('${item.id}', -1)" ${qty===0?'disabled':''} class="w-8 h-8 flex justify-center items-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-red-500 hover:text-white disabled:opacity-50"><i class="fa-solid fa-minus text-xs"></i></button>
+                            <span class="w-8 text-center font-bold text-gray-800 dark:text-white">${qty}</span>
+                            <button onclick="app.updateOrder('${item.id}', 1)" ${item.stock<=0?'disabled':''} class="w-8 h-8 flex justify-center items-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-green-500 hover:text-white disabled:opacity-50"><i class="fa-solid fa-plus text-xs"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            renderCheckoutModal: function() {
+                const table = this.data.tables.find(t => t.id === this.selectedTableId);
+                if (!table) return;
+
+                const now = Date.now();
+                const currentCost = calculateCost(table.startTime, now);
+                const savedCost = (table.savedSessions || []).reduce((sum, s) => sum + s.amount, 0);
+                const serviceCost = (table.items || []).reduce((sum, item) => {
+                    const m = this.data.menu.find(x => x.id === item.id);
+                    return sum + (m ? m.price * item.count : 0);
+                }, 0);
+                const total = currentCost + savedCost + serviceCost;
+
+                let html = `
+                    <div class="text-center mb-4"><div class="inline-block px-4 py-1 rounded-full bg-green-100 dark:bg-neon-green/10 text-green-700 dark:text-neon-green border border-green-200 dark:border-neon-green/30 font-bold mb-1">BÀN ${table.id}</div></div>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between text-gray-700 dark:text-gray-300"><span>Tiền giờ:</span><span class="font-bold text-white">${formatCurrency(currentCost)}</span></div>
+                        <div class="flex justify-between text-gray-700 dark:text-gray-300"><span>Đã chốt:</span><span class="font-bold text-purple-400">${formatCurrency(savedCost)}</span></div>
+                        <div class="flex justify-between text-gray-700 dark:text-gray-300"><span>Dịch vụ:</span><span class="font-bold text-blue-400">${formatCurrency(serviceCost)}</span></div>
+                        <div class="border-t border-gray-600 pt-2 mt-2 flex justify-between text-lg"><span class="font-bold text-white">TỔNG</span><span class="font-bold text-yellow-500 text-2xl">${formatCurrency(total)}</span></div>
+                    </div>`;
+                document.getElementById('checkout-content').innerHTML = html;
+            },
+
+            renderSettingsMenu: function() {
+                const tbody = document.getElementById('settings-menu-list');
+                tbody.innerHTML = this.data.menu.map(item => `
+                    <tr class="border-b border-gray-700">
+                        <td class="p-3 text-white">${item.name}</td>
+                        <td class="p-3 text-right text-green-400">${formatCurrency(item.price)}</td>
+                        <td class="p-3 text-right text-gray-400">${item.stock}</td>
+                        <td class="p-3 text-center"><button onclick="app.deleteMenuItem('${item.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `).join('');
+            },
+
+            renderHistory: function() {
+                const total = this.data.history.reduce((sum, h) => sum + h.totalAmount, 0);
+                document.getElementById('total-revenue-display').innerText = formatCurrency(total);
+                document.getElementById('history-count').innerText = `${this.data.history.length} GD`;
                 
-                updateTimers: function() {
-                    const now = Date.now();
-                    this.data.tables.forEach(table => {
-                        if (table.status === 'active') {
-                            const currentCost = this.calculateCost(table.startTime, now);
-                            const durationText = this.formatDuration(Math.floor((now - table.startTime) / 1000));
-                            
-                            const savedCost = table.savedSessions.reduce((acc, s) => acc + s.amount, 0);
-                            const serviceCost = table.items.reduce((acc, item) => {
-                                const m = this.data.menu.find(x => x.id === item.id);
-                                return acc + (m ? m.price * item.count : 0);
-                            }, 0);
-                            const totalCost = currentCost + savedCost + serviceCost;
+                const tbody = document.getElementById('history-table-body');
+                tbody.innerHTML = [...this.data.history].sort((a,b)=>b.endTime-a.endTime).map(h => `
+                    <tr class="hover:bg-gray-800/50">
+                        <td class="p-4"><span class="bg-gray-700 text-white px-2 py-1 rounded text-xs font-bold">Bàn ${h.tableId}</span></td>
+                        <td class="p-4 text-gray-400 text-sm">${new Date(h.endTime).toLocaleTimeString()}</td>
+                        <td class="p-4 text-right text-gold font-bold">${formatCurrency(h.totalAmount)}</td>
+                    </tr>
+                `).join('');
+                this.renderChart();
+            },
 
-                            const costEl = document.getElementById(`cost-${table.id}`);
-                            const timerEl = document.getElementById(`timer-${table.id}`);
-                            const totalEl = document.getElementById(`total-${table.id}`);
+            renderArchives: function() {
+                const list = document.getElementById('archive-list');
+                list.innerHTML = this.data.archives.map(a => `
+                    <div class="flex justify-between p-2 bg-gray-700 rounded mb-1"><span>${new Date(a.timestamp).toLocaleDateString()}</span><span class="font-bold text-gold">${formatCurrency(a.totalRevenue)}</span></div>
+                `).join('');
+            },
 
-                            if (costEl) costEl.innerText = this.formatCurrency(currentCost);
-                            if (timerEl) timerEl.innerText = durationText;
-                            if (totalEl) totalEl.innerText = this.formatCurrency(totalCost);
-                        }
-                    });
-                },
+            renderChart: function() {
+                const ctx = document.getElementById('revenueChart');
+                if (!ctx) return;
+                if (this.chartInstance) this.chartInstance.destroy();
+                const chartData = Array.from({length:6},(_,i)=>{
+                    const tid = i+1;
+                    return this.data.history.filter(h=>h.tableId===tid).reduce((s,h)=>s+h.totalAmount,0);
+                });
+                this.chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['B1','B2','B3','B4','B5','B6'],
+                        datasets: [{label:'Doanh thu',data:chartData,backgroundColor:'rgba(57,255,20,0.5)',borderColor:'#39ff14',borderWidth:1}]
+                    },
+                    options: {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.1)'}},x:{grid:{display:false}}}}
+                });
+            },
 
-                applyTheme: function() {
-                    if (this.data.theme === 'dark') {
-                        document.documentElement.classList.add('dark');
+            // --- HELPERS ---
+            showNotification: function(title, message) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = 'toast bg-gray-800 border-l-4 border-neon-green text-white p-4 rounded shadow-2xl flex items-center gap-4 animate-slide-in';
+                toast.innerHTML = `
+                    <div class="bg-green-500/20 p-2 rounded-full text-green-400"><i class="fa-solid fa-bell"></i></div>
+                    <div><h4 class="font-bold">${title}</h4><p class="text-sm text-gray-300">${message}</p></div>
+                `;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 5000);
+            },
+            
+            showLogin: function() {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-screen').classList.add('hidden');
+            },
+            showDashboard: function() {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                this.connectFirebase(); // Connect Realtime DB
+            },
+            closeModal: function(id) { document.getElementById(id).classList.add('hidden'); },
+            toggleTheme: function() { 
+                document.documentElement.classList.toggle('dark'); 
+                const isDark = document.documentElement.classList.contains('dark');
+                this.data.theme = isDark ? 'dark' : 'light';
+            },
+            logout: function() {
+                localStorage.removeItem('isLoggedIn');
+                location.reload();
+            },
+            setupEventListeners: function() {
+                document.getElementById('login-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const u = document.getElementById('username').value;
+                    const p = document.getElementById('password').value;
+                    if(u === 'admin' && p === '123456') {
+                        localStorage.setItem('isLoggedIn', 'true');
+                        this.data.isLoggedIn = true;
+                        this.showDashboard();
                     } else {
-                        document.documentElement.classList.remove('dark');
-                    }
-                },
-
-                toggleTheme: function() {
-                    this.data.theme = this.data.theme === 'dark' ? 'light' : 'dark';
-                    this.applyTheme();
-                    this.saveData();
-                    this.renderChart();
-                },
-
-                // --- SETUP EVENT LISTENERS ---
-                setupEventListeners: function() {
-                    // Login
-                    document.getElementById('login-form').addEventListener('submit', (e) => {
-                        e.preventDefault();
-                        const u = document.getElementById('username').value;
-                        const p = document.getElementById('password').value;
-                        
-                        if ((u === 'admin' || u === 'nhanvien') && p === '123456') {
-                            this.data.isLoggedIn = true;
-                            document.getElementById('login-error').classList.add('hidden');
-                            this.saveData();
-                            this.showDashboard();
-                        } else {
-                            document.getElementById('login-error').classList.remove('hidden');
-                        }
-                    });
-
-                    // Settings Modal Open
-                    document.getElementById('settings-btn').addEventListener('click', () => {
-                        this.renderArchives();
-                        this.renderSettingsMenu();
-                        document.getElementById('settings-modal').classList.remove('hidden');
-                    });
-
-                    // Settings Modal Close
-                    document.getElementById('close-settings-btn').addEventListener('click', () => {
-                        document.getElementById('settings-modal').classList.add('hidden');
-                    });
-
-                    // Modal Action Buttons
-                    document.getElementById('toggle-theme-btn').addEventListener('click', () => this.toggleTheme());
-                    document.getElementById('end-day-btn').addEventListener('click', () => this.endDay());
-                    document.getElementById('logout-btn').addEventListener('click', () => {
-                        this.data.isLoggedIn = false;
-                        this.saveData();
-                        document.getElementById('settings-modal').classList.add('hidden');
-                        this.showLogin();
-                    });
-
-                    document.getElementById('close-service-modal-btn').addEventListener('click', () => {
-                        document.getElementById('service-modal').classList.add('hidden');
-                    });
-                    document.getElementById('confirm-service-btn').addEventListener('click', () => {
-                        document.getElementById('service-modal').classList.add('hidden');
-                    });
-                    document.getElementById('close-checkout-modal-btn').addEventListener('click', () => {
-                        document.getElementById('checkout-modal').classList.add('hidden');
-                    });
-                    document.getElementById('cancel-checkout-btn').addEventListener('click', () => {
-                        document.getElementById('checkout-modal').classList.add('hidden');
-                    });
-                    document.getElementById('confirm-checkout-btn').addEventListener('click', () => this.confirmCheckout());
-                }
-            };
-
-            // Global functions for inline onclick (needed for dynamic elements)
-            window.app = app;
-            window.switchSettingsTab = (tabName) => {
-                const tabs = ['general', 'menu'];
-                tabs.forEach(t => {
-                    const btn = document.getElementById(`tab-${t}`);
-                    const content = document.getElementById(`content-${t}`);
-                    if (t === tabName) {
-                        btn.classList.add('text-blue-600', 'dark:text-neon-green', 'border-blue-600', 'dark:border-neon-green');
-                        btn.classList.remove('text-gray-500', 'border-transparent');
-                        content.classList.remove('hidden');
-                    } else {
-                        btn.classList.remove('text-blue-600', 'dark:text-neon-green', 'border-blue-600', 'dark:border-neon-green');
-                        btn.classList.add('text-gray-500', 'border-transparent');
-                        content.classList.add('hidden');
+                        document.getElementById('login-error').classList.remove('hidden');
                     }
                 });
-            };
+                document.getElementById('settings-btn').addEventListener('click', () => document.getElementById('settings-modal').classList.remove('hidden'));
+            }
+        };
 
-            // Init App
-            app.init();
-        });
+        // EXPOSE TO WINDOW FOR HTML ONCLICK
+        window.app = app;
+        window.switchSettingsTab = (tab) => {
+            document.getElementById('content-general').classList.toggle('hidden', tab!=='general');
+            document.getElementById('content-menu').classList.toggle('hidden', tab!=='menu');
+            document.getElementById('tab-general').classList.toggle('border-blue-600', tab==='general');
+            document.getElementById('tab-general').classList.toggle('text-blue-600', tab==='general');
+            document.getElementById('tab-menu').classList.toggle('border-blue-600', tab==='menu');
+            document.getElementById('tab-menu').classList.toggle('text-blue-600', tab==='menu');
+        };
+
+        // RUN
+        app.init();
     </script>
 </body>
 </html>
