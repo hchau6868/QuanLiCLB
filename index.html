@@ -96,11 +96,11 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
     "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0"
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
   }
 }
 </script>
@@ -320,7 +320,7 @@
         import { getDatabase, ref, set, onValue, push, update, remove, onChildAdded } 
             from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // 2. CONFIG CỦA BẠN
+        // 2. CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyC44jwQPMYFJS-sKj3kLM13q2A4OGPt9Xg",
             authDomain: "winbilliards-33482.firebaseapp.com",
@@ -375,7 +375,6 @@
             selectedTableId: null,
             chartInstance: null,
 
-            // --- INIT ---
             init: function() {
                 const isLogged = localStorage.getItem('isLoggedIn') === 'true';
                 if (isLogged) {
@@ -384,47 +383,44 @@
                 } else {
                     this.showLogin();
                 }
-
                 this.setupEventListeners();
-                
                 setInterval(() => {
                     this.data.currentTime = Date.now();
                     if(this.data.isLoggedIn) this.renderTables();
                 }, 1000);
             },
 
-            // --- SYNC DATA (FIXED) ---
+            // --- SYNC DATA ---
             connectFirebase: function() {
                 document.getElementById('loading-tables').classList.remove('hidden');
                 document.getElementById('table-grid').classList.add('hidden');
 
-                // 1. Listen to TABLES
+                // 1. Tables: Read & Check exists
                 onValue(ref(db, 'tables'), (snapshot) => {
                     const val = snapshot.val();
-                    
                     if (!val) {
-                        // CASE: DB is Empty -> Create Default Local Data & Show Immediately
-                        console.log("DB Empty: Creating defaults...");
+                        // DB EMPTY -> Create Defaults (Safety Check)
                         const defaults = Array.from({ length: 6 }, (_, i) => ({
                             id: i + 1, status: 'idle', startTime: null, items: [], savedSessions: []
                         }));
                         this.data.tables = defaults;
-                        // Save to Firebase asynchronously
                         set(ref(db, 'tables'), defaults);
                     } else {
-                        // CASE: Data exists
+                        // DB EXISTS -> Use it
                         this.data.tables = Array.isArray(val) ? val : Object.values(val);
-                        // Ensure arrays exist
-                        this.data.tables = this.data.tables.map(t => ({...t, items: t.items || [], savedSessions: t.savedSessions || []}));
+                        // Normalize arrays
+                        this.data.tables = this.data.tables.map(t => ({
+                            ...t, 
+                            items: t.items || [], 
+                            savedSessions: t.savedSessions || []
+                        }));
                     }
-
-                    // *** ALWAYS RENDER & HIDE LOADING ***
                     this.renderTables();
                     document.getElementById('loading-tables').classList.add('hidden');
                     document.getElementById('table-grid').classList.remove('hidden');
                 });
 
-                // 2. Listen to MENU (Similar Fix)
+                // 2. Menu
                 onValue(ref(db, 'menu'), (snapshot) => {
                     const val = snapshot.val();
                     if (!val) {
@@ -436,35 +432,34 @@
                     this.renderSettingsMenu();
                 });
 
-                // 3. Listen to HISTORY
+                // 3. History
                 onValue(ref(db, 'history'), (snapshot) => {
                     const val = snapshot.val();
                     this.data.history = val ? Object.values(val) : [];
                     this.renderHistory();
                 });
 
-                // 4. Listen to ARCHIVES
+                // 4. Archives
                 onValue(ref(db, 'archives'), (snapshot) => {
                     const val = snapshot.val();
                     this.data.archives = val ? Object.values(val) : [];
                     this.renderArchives();
                 });
                 
-                // 5. NOTIFICATION LISTENER
+                // 5. Notifications
                 onChildAdded(ref(db, 'history'), (snapshot) => {
                     const val = snapshot.val();
                     if(!val) return;
-                    
                     const timeDiff = Date.now() - val.endTime;
                     if (timeDiff < 30000) {
                         this.showNotification(`🔔 Bàn ${val.tableId} vừa thanh toán`, `Tổng: ${formatCurrency(val.totalAmount)}`);
                         const audio = document.getElementById('notification-sound');
-                        audio.play().catch(e => console.log('Audio requires interaction'));
+                        audio.play().catch(e => console.log('Interact needed'));
                     }
                 });
             },
 
-            // --- ACTIONS (WRITE TO FIREBASE) ---
+            // --- ACTIONS ---
             startTable: function(id) {
                 const idx = this.data.tables.findIndex(t => t.id === id);
                 if (idx > -1) {
@@ -506,14 +501,12 @@
                 };
 
                 push(ref(db, 'history'), newRecord);
-                
                 update(ref(db, `tables/${tableIdx}`), {
                     status: 'idle',
                     startTime: null,
                     items: [],
                     savedSessions: []
                 });
-
                 this.closeModal('checkout-modal');
             },
 
@@ -524,7 +517,6 @@
                     const now = Date.now();
                     const cost = calculateCost(table.startTime, now);
                     const newSession = { startTime: table.startTime, endTime: now, amount: cost };
-                    
                     const updatedSessions = [...(table.savedSessions || []), newSession];
                     
                     update(ref(db, `tables/${tableIdx}`), {
@@ -534,7 +526,7 @@
                 }
             },
 
-            // --- INVENTORY & ORDER ---
+            // --- INVENTORY & ORDER (INSTANT FEEDBACK FIX) ---
             orderRequest: function(id) {
                 this.selectedTableId = id;
                 this.renderServiceModal();
@@ -542,6 +534,7 @@
             },
 
             updateOrder: function(itemId, change) {
+                // 1. Get current local state
                 const tableIdx = this.data.tables.findIndex(t => t.id === this.selectedTableId);
                 const table = this.data.tables[tableIdx];
                 const menuIdx = this.data.menu.findIndex(m => m.id === itemId);
@@ -549,26 +542,47 @@
 
                 if (!table || !menuItem) return;
 
+                // 2. Stock check
                 if (change > 0 && menuItem.stock <= 0) {
                     alert('Hết hàng trong kho!');
                     return;
                 }
 
+                // 3. Update Table Items array locally
                 let items = [...(table.items || [])];
                 const itemInTableIdx = items.findIndex(i => i.id === itemId);
+                let currentQty = itemInTableIdx > -1 ? items[itemInTableIdx].count : 0;
+                let newQty = currentQty + change;
+                
+                if (newQty < 0) newQty = 0;
 
+                // 4. INSTANT UI UPDATE (Direct DOM Manipulation)
+                const qtySpan = document.getElementById(`qty-${itemId}`);
+                if (qtySpan) {
+                    qtySpan.innerText = newQty;
+                    // Add simple animation effect
+                    qtySpan.classList.add('scale-125', 'text-neon-green');
+                    setTimeout(() => qtySpan.classList.remove('scale-125', 'text-neon-green'), 150);
+                }
+                
+                // Toggle Minus button state
+                const minusBtn = document.getElementById(`btn-minus-${itemId}`);
+                if (minusBtn) minusBtn.disabled = (newQty === 0);
+
+                // 5. Update Internal Data
                 if (itemInTableIdx > -1) {
-                    items[itemInTableIdx].count += change;
-                    if (items[itemInTableIdx].count <= 0) items.splice(itemInTableIdx, 1);
+                    items[itemInTableIdx].count = newQty;
+                    if (newQty === 0) items.splice(itemInTableIdx, 1);
                 } else if (change > 0) {
-                    items.push({ id: itemId, count: change });
+                    items.push({ id: itemId, count: newQty });
                 }
 
+                // 6. Sync to Firebase (Background)
                 const updates = {};
                 updates[`tables/${tableIdx}/items`] = items;
-                updates[`menu/${menuIdx}/stock`] = menuItem.stock - change; 
+                updates[`menu/${menuIdx}/stock`] = menuItem.stock - change;
 
-                update(ref(db), updates);
+                update(ref(db), updates).catch(err => console.error("Sync error", err));
             },
 
             // --- MENU MANAGEMENT ---
@@ -604,7 +618,6 @@
                         timestamp: Date.now(),
                         totalRevenue: total
                     };
-                    
                     push(ref(db, 'archives'), archive);
                     set(ref(db, 'history'), null);
                     alert('Đã chốt ngày!');
@@ -696,9 +709,13 @@
                             <p class="text-xs text-gray-500">Kho: ${item.stock}</p>
                         </div>
                         <div class="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                            <button onclick="app.updateOrder('${item.id}', -1)" ${qty===0?'disabled':''} class="w-8 h-8 flex justify-center items-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-red-500 hover:text-white disabled:opacity-50"><i class="fa-solid fa-minus text-xs"></i></button>
-                            <span class="w-8 text-center font-bold text-gray-800 dark:text-white">${qty}</span>
-                            <button onclick="app.updateOrder('${item.id}', 1)" ${item.stock<=0?'disabled':''} class="w-8 h-8 flex justify-center items-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-green-500 hover:text-white disabled:opacity-50"><i class="fa-solid fa-plus text-xs"></i></button>
+                            <!-- ADDED ID to Button Minus -->
+                            <button id="btn-minus-${item.id}" onclick="app.updateOrder('${item.id}', -1)" ${qty===0?'disabled':''} class="w-8 h-8 flex justify-center items-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-red-500 hover:text-white disabled:opacity-50 transition-colors"><i class="fa-solid fa-minus text-xs"></i></button>
+                            
+                            <!-- ADDED ID to QTY Span -->
+                            <span id="qty-${item.id}" class="w-8 text-center font-bold text-gray-800 dark:text-white transition-all duration-150">${qty}</span>
+                            
+                            <button onclick="app.updateOrder('${item.id}', 1)" ${item.stock<=0?'disabled':''} class="w-8 h-8 flex justify-center items-center rounded bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white hover:bg-green-500 hover:text-white disabled:opacity-50 transition-colors"><i class="fa-solid fa-plus text-xs"></i></button>
                         </div>
                     </div>`;
                 }).join('');
@@ -849,6 +866,3 @@
     </script>
 </body>
 </html>
-
-
-
