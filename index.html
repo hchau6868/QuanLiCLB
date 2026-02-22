@@ -104,6 +104,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <!-- SOUND EFFECT (Hidden) -->
@@ -586,6 +587,32 @@
             },
 
             // --- MENU MANAGEMENT ---
+            updateStock: function(id, value) {
+                const val = parseInt(value);
+                if (isNaN(val) || val < 0) {
+                    alert('Số lượng không hợp lệ!');
+                    this.renderSettingsMenu(); // Reset UI
+                    return;
+                }
+                
+                const idx = this.data.menu.findIndex(m => m.id === id);
+                if (idx > -1) {
+                    // Optimistic update
+                    this.data.menu[idx].stock = val;
+                    
+                    // Firebase update
+                    update(ref(db, `menu/${idx}`), { stock: val })
+                        .then(() => {
+                            this.showNotification('Kho hàng', 'Đã cập nhật số lượng!');
+                            this.renderSettingsMenu();
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Lỗi cập nhật Firebase');
+                        });
+                }
+            },
+
             addMenuItem: function() {
                 const name = document.getElementById('new-item-name').value;
                 const price = parseInt(document.getElementById('new-item-price').value);
@@ -751,8 +778,16 @@
                     <tr class="border-b border-gray-700">
                         <td class="p-3 text-white">${item.name}</td>
                         <td class="p-3 text-right text-green-400">${formatCurrency(item.price)}</td>
-                        <td class="p-3 text-right text-gray-400">${item.stock}</td>
-                        <td class="p-3 text-center"><button onclick="app.deleteMenuItem('${item.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+                        <td class="p-3 text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                <button onclick="app.updateStock('${item.id}', ${item.stock - 1})" class="w-8 h-8 bg-gray-700 rounded hover:bg-red-500 text-white font-bold transition-colors">-</button>
+                                <input type="number" value="${item.stock}" 
+                                    onchange="app.updateStock('${item.id}', this.value)"
+                                    class="w-16 text-center bg-gray-800 border border-gray-600 rounded text-white text-sm focus:border-neon-green outline-none py-1">
+                                <button onclick="app.updateStock('${item.id}', ${item.stock + 1})" class="w-8 h-8 bg-gray-700 rounded hover:bg-green-500 text-white font-bold transition-colors">+</button>
+                            </div>
+                        </td>
+                        <td class="p-3 text-center"><button onclick="app.deleteMenuItem('${item.id}')" class="text-red-500 hover:text-red-400 transition-colors"><i class="fa-solid fa-trash"></i></button></td>
                     </tr>
                 `).join('');
             },
@@ -864,5 +899,6 @@
         // RUN
         app.init();
     </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
